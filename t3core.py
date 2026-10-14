@@ -1,3 +1,7 @@
+"""ฟังก์ชันประมวลผลภาพของ Template 3 (ไม่มี deep learning)
+flatten แสง -> หาจุดอ้างอิง (สี่เหลี่ยมดำ/กล่องเลข 3/ขีดแถว) -> วัด layout จาก template
+-> จัดภาพเป็น 1654x2339 (ลองหมุน 0/180/90/270) -> แบ่งช่อง -> Character Check (ink ratio) -> เตรียมช่อง 32x32
+"""
 import cv2, json, numpy as np
 
 STD_W, STD_H = 1654, 2339          # ขนาดมาตรฐานหลังจัดภาพ (A4 @200dpi)

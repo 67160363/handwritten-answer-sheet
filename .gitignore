@@ -6,3 +6,7 @@ __pycache__/
 *.zip
 DS_Store*
 .DS_Store
+
+# copyrighted material (local only)
+Example_paper/
+PROJECT-COMPUTER VISION.pdf

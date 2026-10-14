@@ -6,7 +6,7 @@
 Baseline ที่ต้องเทียบ (Template 3): **CAR 98.80%, WAR 98.44%, F1 99.63%**
 - CAR = ความแม่นรายตัวอักษร, WAR = ความแม่นทั้งฟิลด์ (คำตอบทั้งข้อถูกครบ)
 Flow อาจารย์: Pre-processing → YOLO (header + answer rows) → Grid Cell Segmentation (C0–C9) → Character Check (blank?) → HWR → JSON → Scoring
-Paper อ้างอิงใน `Example_paper/`: CLA (ม.บูรพา, ใกล้สุด), OMRNet, TrOCR, DocUNet, CascadeTabNet
+Paper อ้างอิงใน `Example_paper/` (เก็บในเครื่องเท่านั้น — gitignore เพราะลิขสิทธิ์, repo เป็น public; ลิงก์อยู่ใน README): CLA (ม.บูรพา, ใกล้สุด), OMRNet, TrOCR, DocUNet, CascadeTabNet
 
 ## แบบฟอร์ม Template 3
 - 3 หน้า × 30 ข้อ = 90 ข้อ; แต่ละข้อ 10 ช่องเขียนตัวเลขลายมือ: 6 ช่อง + **ช่อง index 6 สีเทา = จุดทศนิยมพิมพ์ไว้แล้ว (ข้ามเสมอ)** + 3 ช่อง
@@ -25,6 +25,7 @@ Paper อ้างอิงใน `Example_paper/`: CLA (ม.บูรพา, �
 | `step2_make_dataset.py` | ตัดช่อง → `out/cells/`, `out/cells.csv`; สร้าง YOLO dataset + label อัตโนมัติจาก layout → `out/yolo/` |
 | `step3_train_yolo.py` | YOLOv8n (6 คลาส: answer_row, student_id, subject_id, school_id, quiz_set, page_no) บนภาพที่จัดแล้ว |
 | `step4_train_cnn.py` | (option) pre-train MNIST 3 epoch → fine-tune; รายงาน test → `out/cnn_report.txt`, confusion matrix |
+| `demo.ipynb` | โชว์อาจารย์ตามลำดับสไลด์ import จากโมดูลเท่านั้น (ห้ามก็อปโค้ด) — แก้แล้วรัน `jupyter nbconvert --execute --inplace` |
 | `step5_predict.py` | ตรวจจริง → JSON; `--eval` คำนวณ CAR/WAR จาก `data/eval/*.jpg` + `*.csv` (field,value) |
 
 ## ข้อมูล
@@ -55,6 +56,7 @@ python step5_predict.py data/Raw_Dataset/0/xxx.jpg
 
 ## สถานะ
 - [x] pipeline จัดภาพ/ตัดช่อง ทดสอบกับภาพจำลอง (เอียง, เงา, กลับหัว) และรูปจริงแผ่นเลข 0 (ภาพย่อ 529px) ผ่าน
-- [ ] ยังไม่เคยรัน step3/step4/step5 จริง (เขียนโดยไม่มี torch ในเครื่องที่เขียน) — รันครั้งแรกให้ระวัง error
+- [x] step1 30/30, step2, step4 (15 epoch: test 97.44% — ผลเบื้องต้น เลขละ 3 แผ่น) รันแล้ว
+- [ ] ยังไม่เคยรัน step3 (YOLO) และ step5 กับชุด eval
 - [ ] เก็บข้อมูลเพิ่ม: เป้าหมายเลขละ 8–10 แผ่น หลายคน กระจาย 3 หน้า + แผ่นเปล่าที่ถ่ายจริง
 - [ ] ทำชุด eval แผ่นที่เขียนตัวเลขผสมจริง + เฉลย CSV เพื่อวัด CAR/WAR เทียบ baseline
