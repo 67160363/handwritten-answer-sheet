@@ -1,0 +1,10 @@
+opencv-python
+numpy
+pandas
+pillow
+pillow-heif
+matplotlib
+scikit-learn
+torch
+torchvision
+ultralytics
