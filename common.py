@@ -62,7 +62,7 @@ def load_layouts():
 def process_sheet(path):
     """รูปถ่าย -> (aligned, page, layout, H, rot, score)"""
     LAYOUT, REF = load_layouts()
-    aligned, H, rot, score = core.align(imread(path), LAYOUT[1], REF[1])
+    aligned, H, rot, score = core.align(imread(path), LAYOUT[1], [REF[p] for p in (1, 2, 3)])
     page, _ = core.bubble_filled(aligned, LAYOUT[1]["page_no"])
     page = page or 1
     return aligned, page, LAYOUT[page], H, rot, score

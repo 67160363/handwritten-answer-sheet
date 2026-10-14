@@ -30,7 +30,9 @@ def find_markers(img):
     คืนค่า dict {name: (cx, cy)} หรือ None"""
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) if img.ndim == 3 else img
     H, W = gray.shape
-    th = (flatten(gray) < 110).astype(np.uint8) * 255
+    fl = flatten(gray)
+    otsu, _ = cv2.threshold(fl, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    th = (fl < min(150, otsu)).astype(np.uint8) * 255   # สี่เหลี่ยมพิมพ์ซีด (เทา ~100-120) ก็ยังทึบ
     k = max(2, round(5 * max(H, W) / STD_H))          # kernel ตามขนาดภาพ (ภาพเล็กใช้ kernel เล็ก กันขีดติดกรอบ)
     th = cv2.morphologyEx(th, cv2.MORPH_CLOSE, np.ones((k, k), np.uint8))
     cnts, _ = cv2.findContours(th, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -44,7 +46,7 @@ def find_markers(img):
         ar = w / h
         fill = area / (w * h)
         # สี่เหลี่ยมทึบใหญ่ ~0.25% ของหน้า
-        if 0.7 < ar < 1.4 and fill > 0.8 and 0.0008 < area / page_area < 0.01:
+        if 0.7 < ar < 1.4 and fill > 0.7 and 0.0008 < area / page_area < 0.01:
             squares.append((x + w / 2, y + h / 2, area))
         # ขีด timing mark (ยาว:สูง ≈ 4:1)
         elif 2.0 < ar < 7 and fill > 0.75 and 0.00005 < area / page_area < 0.001:
@@ -159,25 +161,38 @@ def _align_once(img, layout):
     aligned = cv2.warpPerspective(pre, H, (STD_W, STD_H), borderValue=(255, 255, 255))
     return aligned, (H @ M0 if M0 is not None else H)
 
-def match_score(aligned, ref_gray):
-    """ความเหมือนกับ template (ใช้ตรวจว่าจัดภาพถูกต้อง/ไม่กลับหัว)"""
-    a = cv2.resize(flatten(cv2.cvtColor(aligned, cv2.COLOR_BGR2GRAY)), (200, 283)).astype(np.float32)
-    b = cv2.resize(ref_gray, (200, 283)).astype(np.float32)
-    a, b = a - a.mean(), b - b.mean()
-    return float((a * b).sum() / (np.linalg.norm(a) * np.linalg.norm(b) + 1e-6))
+def mask_fields(gray, layout, pad=12):
+    """ทาช่องคำตอบ+ช่องรหัสเป็นขาว (ลายมือในช่องไม่ควรมีผลกับ score)"""
+    g = gray.copy()
+    for x, y, w, h in layout["rows"] + list(layout["header"].values()):
+        g[max(0, y - pad):y + h + pad, max(0, x - pad):x + w + pad] = 255
+    return g
+
+def match_score(aligned, refs, layout):
+    """ความเหมือนกับ template (ใช้ตรวจว่าจัดภาพถูกต้อง/ไม่กลับหัว) — เทียบเฉพาะส่วนที่พิมพ์ไว้
+    refs = list ของ template gray (3 หน้า) -> เอาค่าสูงสุด"""
+    def vec(g):
+        v = cv2.resize(mask_fields(g, layout), (200, 283), interpolation=cv2.INTER_AREA).astype(np.float32)
+        return v - v.mean()
+    a = vec(flatten(cv2.cvtColor(aligned, cv2.COLOR_BGR2GRAY)))
+    return max(float((a * b).sum() / (np.linalg.norm(a) * np.linalg.norm(b) + 1e-6))
+               for b in map(vec, refs))
 
 ROTS = [None, cv2.ROTATE_180, cv2.ROTATE_90_CLOCKWISE, cv2.ROTATE_90_COUNTERCLOCKWISE]
+# วัดจาก 30 รูปจริง + template (2026-10-14): ทิศถูก 0.863–0.999, หมุนผิด/สะท้อน ≤ 0.61 -> ตัดกลาง ๆ
+MIN_SCORE = 0.7
 
-def align(img, layout, ref_gray, min_score=0.4):
+def align(img, layout, refs, min_score=None):
     """จัดภาพถ่ายให้ตรง template ลองหมุน 0/180/90/270 แล้วเลือกที่เหมือน template ที่สุด
     คืน (aligned_img, H, rot, score) — H แมปจากภาพที่หมุนแล้ว -> ภาพมาตรฐาน"""
+    min_score = MIN_SCORE if min_score is None else min_score
     best = (None, None, None, -1)
     for rot in ROTS:
         im = img if rot is None else cv2.rotate(img, rot)
         al, H = _align_once(im, layout)
         if al is None:
             continue
-        sc = match_score(al, ref_gray)
+        sc = match_score(al, refs, layout)
         if sc > best[3]:
             best = (al, H, rot, sc)
         if sc > 0.8:
