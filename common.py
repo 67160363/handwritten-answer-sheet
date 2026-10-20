@@ -4,7 +4,10 @@ import cv2, numpy as np
 import t3core as core
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
-RAW_DIR = os.environ.get("RAW_DIR", os.path.join(ROOT, "data", "Raw_Dataset"))  # 0/ … 9/ blank/
+_RAW_DEFAULT = os.path.join(ROOT, "data", "Raw_Dataset")
+if not os.path.isdir(_RAW_DEFAULT) and os.path.isdir(os.path.join(ROOT, "Raw_Dataset")):
+    _RAW_DEFAULT = os.path.join(ROOT, "Raw_Dataset")                              # วาง Raw_Dataset ไว้ที่ราก project ก็ได้
+RAW_DIR = os.environ.get("RAW_DIR", _RAW_DEFAULT)  # 0/ … 9/ blank/
 TEMPLATE_DIR = os.environ.get("TEMPLATE_DIR", os.path.join(ROOT, "T3"))         # template เปล่า page1/2/3
 EVAL_DIR = os.path.join(ROOT, "data", "eval")                                    # แผ่นทดสอบ + เฉลย .csv
 OUT = os.path.join(ROOT, "out")
