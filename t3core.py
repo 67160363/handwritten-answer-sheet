@@ -261,6 +261,17 @@ def remove_border_lines(th):
         hline = bw > 0.5 * w and bh < 0.15 * h and (y <= 0.15 * h or y + bh >= 0.85 * h)
         if vline or hline:
             th[lab == i] = 0
+    # เส้นตารางแนวนอนที่พาดผ่านกลางช่อง (กระดาษโค้ง -> เส้นเอียงเข้ามาในช่อง) แม้ติดกับตัวเลข:
+    # ต้องยาวทะลุขอบซ้าย-ขวาของช่อง (เส้นพิมพ์ต่อเนื่องทั้งแถว; ขีดกลางของเลข 4 ไม่ถึงขอบทั้งสองข้าง)
+    if w >= 10 and h >= 10:
+        seg = cv2.morphologyEx(th, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (max(3, w // 3), 1)))
+        grp = cv2.dilate(seg, cv2.getStructuringElement(cv2.MORPH_RECT, (7, 3)))
+        n, lab, st, _ = cv2.connectedComponentsWithStats(grp)
+        for i in range(1, n):
+            x, y, bw, bh = st[i, :4]
+            if x <= 1 and x + bw >= w - 1 and bh <= 0.35 * h:
+                line = ((lab == i) & (seg > 0)).astype(np.uint8)
+                th[cv2.dilate(line, np.ones((3, 1), np.uint8)) > 0] = 0
     return th
 
 def ink_ratio(cell):
@@ -274,9 +285,17 @@ def bubble_filled(aligned, circles):
         return 0, vals
     return int(np.argmax(vals)) + 1, vals
 
+PAPER_LEVEL = 248  # พื้นกระดาษปกติหลัง flatten (p1 ของช่องในแผ่น train ของเรา ~253)
+
+def digit_level(cell):
+    """threshold ต่อช่อง: ช่องที่พื้นเข้มกว่ากระดาษปกติ (เงา/รูปถ่ายมืด) -> ลด threshold ลงเท่าที่พื้นเข้มขึ้น
+    ช่องพื้นปกติได้ DIGIT_LEVEL เท่าเดิม (ไม่ทำให้ช่องที่มีเงากลายเป็นก้อนหมึกทั้งช่อง)"""
+    bg = float(np.percentile(cell, 60))              # หมึกกินพื้นที่ < 40% ของช่อง
+    return DIGIT_LEVEL - max(0.0, PAPER_LEVEL - bg)
+
 def prep_cell(cell, size=32):
     """ทำให้ช่องเป็นภาพขาวดำ 32x32 ตัวเลขอยู่กลาง (แบบ MNIST)"""
-    th = ink_mask(cell, level=DIGIT_LEVEL)          # threshold หลวมกว่า -> เส้นปากกาจาง ๆ ไม่ขาด
+    th = ink_mask(cell, level=digit_level(cell))    # threshold หลวม -> เส้นปากกาจาง ๆ ไม่ขาด
     th = remove_border_lines(th)
     # เก็บเฉพาะ component ที่ใหญ่พอ (ตัดเศษเส้นตาราง/จุด)
     n, lab, st, _ = cv2.connectedComponentsWithStats(th)
